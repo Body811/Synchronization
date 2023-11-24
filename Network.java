@@ -1,8 +1,9 @@
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 public class Network{
     public static void main(String[] args){
@@ -22,13 +23,12 @@ public class Network{
             Device d=new Device(name,type,router);
             devices.add(d);
         }
-        for (Device d:devices){
-            d.start();
+        for (int i = 0; i < tc; i++) {
+            devices.get(i).start();
         }
+        obj.close();
     }
 }
-
-
 class Router {
     int maxNum;
     Semaphore full;
@@ -50,15 +50,16 @@ class Router {
         for (int i = 0; i < maxNum; i++) {
             if(connections[i].name.equals("0")){
                 connections[i] =d;
-                temp=i;
+                temp=i+1;
                 break;
             }
         }
         try {
             FileWriter file = new FileWriter("log.txt",true);
-            file.write("Connection "+temp+1+": "+d.name+ " Occupied");
+            file.write("Connection "+temp+": "+d.name+ " Occupied\n");
+            file.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
         full.release();
     }
@@ -67,48 +68,55 @@ class Router {
         int temp=-1;
         for (int i = 0; i < maxNum; i++) {
             if(connections[i].equals(d)){
-                temp=i;
+                temp=i+1;
                 break;
             }
         }
         try {
             FileWriter file = new FileWriter("log.txt",true);
-            file.write("Connection "+temp+1+": "+d.name+ " login");
+            file.write("Connection "+temp+": "+d.name+ " login\n");
+            file.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
-    public void performOnlineActivity(Device d) throws InterruptedException {
-        int temp=-1;
-        for (int i = 0; i < maxNum; i++) {
-            if(connections[i].equals(d)){
-                temp=i;
-                break;
+    public void performOnlineActivity(int t,Device d){
+        try {
+            int temp=-1;
+            for (int i = 0; i < maxNum; i++) {
+                if(connections[i].equals(d)){
+                    temp=i+1;
+                    break;
+                }
             }
+                try {
+                    FileWriter file = new FileWriter("log.txt", true);
+                    file.write("Connection " + temp + ": " + d.name + " performs online activity\n");
+                    file.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                TimeUnit.SECONDS.sleep(t);
+        }catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        if(temp != -1) {
-            try {
-                FileWriter file = new FileWriter("log.txt", true);
-                file.write("Connection " + temp + 1 + ": " + d.name + " performs online activity");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            Thread.sleep((long) (Math.random() * 2000));
-        }
+
     }
     public void disConnect(Device d){
         int temp=-1;
         for (int i = 0; i < maxNum; i++) {
             if(connections[i].equals(d)){
-                temp=i;
+                connections[i] =new Device("0","0",this);
+                temp=i+1;
                 break;
             }
         }
         try {
             FileWriter file = new FileWriter("log.txt", true);
-            file.write("Connection " + temp + 1 + ": " + d.name + "logged out");
+            file.write("Connection " + temp + ": " + d.name + " logged out\n");
+            file.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
         empty.release();
     }
@@ -125,22 +133,24 @@ class Semaphore{
             if(connect && !d.getName().equals("0")){
                 try {
                     FileWriter file = new FileWriter("log.txt",true);
-                    file.write("("+d.name+")"+"("+d.type+") arrived and waiting");
+                    file.write("("+d.name+")"+"("+d.type+") arrived and waiting\n");
+                    file.close();
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
                 try {
                     wait();
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
             }
         }else {
             try {
                 FileWriter file = new FileWriter("log.txt",true);
-                file.write("("+d.name+")"+"("+d.type+") arrived");
+                file.write("("+d.name+")"+"("+d.type+") arrived\n");
+                file.close();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                e.printStackTrace();
             }
         }
     }
@@ -161,13 +171,10 @@ class Device extends Thread{
     }
 
     public void run(){
+        Random r=new Random();
         router.connect(this);
         router.login(this);
-        try {
-            router.performOnlineActivity(this);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        router.performOnlineActivity(r.nextInt(10),this);
         router.disConnect(this);
     }
 }
